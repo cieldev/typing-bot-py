@@ -1,9 +1,9 @@
 import asyncio
+
 import discord
 from discord.ui import Button
 
-from utils import games_manager
-from classes.game_class import Game
+from utils import games_manager, aggregate_queue
 
 
 class GameJoinButton(Button):
@@ -16,7 +16,7 @@ class GameJoinButton(Button):
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user
         channel_id = interaction.channel_id
-        game: Game = games_manager.get_game(channel_id)
+        game = games_manager.get_game(channel_id)
         if game is None:
             return
         if user.id in game.player_list:
@@ -41,13 +41,14 @@ class GameLeaveButton(Button):
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user
         channel_id = interaction.channel_id
-        game: Game = games_manager.get_game(channel_id)
+        game = games_manager.get_game(channel_id)
         if game is None:
             return
         if user.id not in game.player_list:
             return
         if len(game.player_list) == 1:
             games_manager.remove_game(game)
+            await aggregate_queue.queues[channel_id].put("end")
             await interaction.response.send_message(f"ゲームを中止しました。", ephemeral=False)
             return
         game.remove_player(user.id)
@@ -71,7 +72,7 @@ class GameStartButton(Button):
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = interaction.channel_id
-        game: Game = games_manager.get_game(channel_id)
+        game = games_manager.get_game(channel_id)
         if game is None:
             return
         view = discord.ui.View(timeout=None)
@@ -80,15 +81,16 @@ class GameStartButton(Button):
         await interaction.response.send_message(f"5秒後にゲームを開始します！", ephemeral=False)
         for i in (4, 3, 2, 1):
             await asyncio.sleep(1)
-            await interaction.edit_original_message(content=f"{i}秒後にゲームを開始します！")
+            await interaction.edit_original_response(content=f"{i}秒後にゲームを開始します！")
 
-        for user_id in game.player_list:
-            game.start_answering(user_id)
         question = game.get_next_question()
         game.save()
         embed = discord.Embed(title=f"問題1：{question}",
                               color=discord.Color.blurple())
-        await interaction.channel.send(embed=embed, view=view)
+        msg: discord.Message = await interaction.channel.send(embed=embed, view=view)
+        sent_timestamp = msg.created_at.timestamp()
+        for user_id in game.player_list:
+            game.start_answering(user_id, sent_timestamp)
         await interaction.message.delete()
 
 
@@ -101,7 +103,7 @@ class GameQuitButton(Button):
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = interaction.channel_id
-        game: Game = games_manager.get_game(channel_id)
+        game = games_manager.get_game(channel_id)
         if game is None:
             return
         games_manager.remove_game(game)
@@ -117,16 +119,18 @@ class NextQuestionButton(Button):
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = interaction.channel_id
-        game: Game = games_manager.get_game(channel_id)
+        game = games_manager.get_game(channel_id)
         if game is None:
             return
         question = game.get_next_question()
-        for user_id in game.player_list:
-            game.start_answering(user_id)
         question_number = game.question_index + 1
-        embed = discord.Embed(title=f"問題{question_number}：{question}", color=discord.Color.blurple())
+        embed = discord.Embed(
+            title=f"問題{question_number}：{question}", color=discord.Color.blurple())
         game.save()
         view = discord.ui.View(timeout=None)
         view.add_item(NextQuestionButton())
         view.add_item(GameQuitButton())
-        await interaction.channel.send(embed=embed, view=view)
+        msg: discord.Message = await interaction.channel.send(embed=embed, view=view)
+        sent_timestamp = msg.created_at.timestamp()
+        for user_id in game.player_list:
+            game.start_answering(user_id, sent_timestamp)
