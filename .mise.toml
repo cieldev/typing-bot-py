@@ -1,0 +1,13 @@
+[env]
+_.file = './.env.prod'
+
+[tasks.run]
+depends = ["build", "run"]
+description = "Run a program"
+run = "python3 main.py"
+
+[tasks.build]
+run = "pip install -r requirements.txt"
+
+[tools]
+python = "3.11"
