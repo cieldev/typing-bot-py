@@ -7,12 +7,10 @@ class GuildRanking:
             self.word_count = json_data["word_count"]
             self.competitors_records = {}
             for user_id in json_data["competitors_records"]:
-                self.competitors_records[int(
-                    user_id)] = json_data["competitors_records"][user_id]
+                self.competitors_records[int(user_id)] = json_data["competitors_records"][user_id]
         else:
             if None in (guild_id, word_count):
-                raise ValueError(
-                    "guild_id and word_count can't be None if json_data is not passed.")
+                raise ValueError("guild_id and word_count can't be None if json_data is not passed.")
             self.guild_id = guild_id
             self.word_count = word_count
             self.competitors_records = {}
@@ -27,18 +25,11 @@ class GuildRanking:
         self.competitors_records.update(user_records)
 
     def get_all_records(self, sort_by_time: bool = True) -> dict:
-        records = {}
         if sort_by_time:
-            sorted_tuple = sorted(
-                self.competitors_records.items(), key=lambda x: x[1])
-            i: tuple
-            for i in sorted_tuple:
-                user_id = i[0]
-                time = self.competitors_records[user_id]
-                records[user_id] = time
+            sorted_tuple = sorted(self.competitors_records.items(), key=lambda x: x[1])
+            records = {i[0]: i[1] for i in sorted_tuple}
         else:
-            for user_id in self.competitors_records:
-                records[user_id] = self.competitors_records[user_id]
+            records = self.competitors_records
         return records
 
     def is_user_in_ranking(self, user_id: int):
@@ -60,8 +51,7 @@ class GlobalRanking:
         self.word_count = word_count
         self.competitors_records = {}
         for user_id in competitors_record:
-            self.competitors_records[int(
-                user_id)] = competitors_record[user_id]
+            self.competitors_records[int(user_id)] = competitors_record[user_id]
 
     def is_user_in_ranking(self, user_id: int):
         return int(user_id) in self.competitors_records
@@ -70,16 +60,9 @@ class GlobalRanking:
         return self.competitors_records.get(user_id)
 
     def get_all_records(self, sort_by_time: bool = True):
-        records = {}
         if sort_by_time:
-            sorted_tuple = sorted(
-                self.competitors_records.items(), key=lambda x: x[1])
-            i: tuple
-            for i in sorted_tuple:
-                user_id = i[0]
-                time = self.competitors_records[user_id]
-                records[user_id] = time
+            sorted_tuple = sorted(self.competitors_records.items(), key=lambda x: x[1])
+            records = {i[0]: i[1] for i in sorted_tuple}
         else:
-            for user_id in self.competitors_records:
-                records[user_id] = self.competitors_records[user_id]
+            records = self.competitors_records
         return records
