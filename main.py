@@ -77,8 +77,10 @@ async def guild_ranking(ctx: discord.ApplicationContext):
     all_records: dict = ranking.get_all_records()
     embed = discord.Embed(title="このサーバーでの順位", color=discord.Color.green(),
                           description=f"文字数：{ranking.word_count}文字")
-    for user_id in all_records:
-        rank = list(all_records.keys()).index(user_id) + 1
+    guild_members = await ctx.guild.fetch_members().flatten()
+    record_members = [i for i in list(all_records.keys()) if i in [m.id for m in guild_members]]
+    for user_id in record_members:
+        rank = record_members.index(user_id) + 1
         member = ctx.guild.get_member(user_id)
         embed.add_field(name=f"{rank}位 {member.display_name}#{member.discriminator}",
                         value=f"{all_records[user_id]}秒", inline=False)
